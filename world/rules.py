@@ -93,7 +93,7 @@ class HunterAgent(Agent):
             if dist < best_dist:
                 best_dist = dist
                 best_action = action
-
+        
         return best_action
 
 

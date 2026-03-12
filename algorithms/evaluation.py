@@ -1,5 +1,5 @@
 from __future__ import annotations
-from algorithms.utils import bfs_distance
+from algorithms.utils import bfs_distance, dijkstra
 import math
 
 from typing import TYPE_CHECKING
@@ -73,40 +73,45 @@ def evaluation_function(state: GameState) -> float:
 
     '''promtpt: use the code in evaluation function to fix my errors in the evaluation function. (Adjunto estaba el codigo del intento hecho a mano)'''
 
+
     drone_pos = state.get_drone_position()
-    hunter_positions = state.get_hunter_positions()
+    hunters = state.get_hunter_positions()
     deliveries = state.get_pending_deliveries()
+    score = state.get_score()
     layout = state.get_layout()
 
-    if state.is_win():
-        return 1000.0
-    if state.is_lose():
-        return -1000.0
-
-    value = 0.0
-
-    # Hunter avoidance — most important factor
-    if hunter_positions:
-        hunter_distances = [
-            bfs_distance(layout, drone_pos, h, hunter_restricted=True)
-            for h in hunter_positions
-        ]
-        reachable = [d for d in hunter_distances if d != math.inf]
-        if reachable:
-            closest = min(reachable)
-            # Smooth penalty: large when close, small when far
-            # At dist=1 → -250, dist=3 → -62, dist=10 → -9
-            value -= 250 / closest
-
-    # Delivery progress — secondary
+    # ---- DELIVERY DISTANCE (MUCHO MAS IMPORTANTE) ----
     if deliveries:
-        delivery_distances = [bfs_distance(layout, drone_pos, d) for d in deliveries]
-        min_dist = min(delivery_distances)
-        value += 30 / (min_dist + 1)
-        value -= 3 * len(deliveries)
+        min_delivery_dist = float("inf")
 
-    # Score bonus — tertiary
-    value += state.get_score() * 0.5
+        for delivery in deliveries:
+            dist = dijkstra(layout, drone_pos, delivery)[0]
+            if dist < min_delivery_dist:
+                min_delivery_dist = dist
 
-    return max(-999.0, min(999.0, value))
+        # más incentivo por acercarse
+        score += 20 / (min_delivery_dist + 1)
 
+
+    # ---- HUNTER DISTANCE (menos conservador) ----
+    for hunter in hunters:
+
+        dist = bfs_distance(layout, hunter, drone_pos, hunter_restricted=True)
+
+        if dist == float("inf"):
+            continue
+
+        if dist <= 1:
+            score -= 300   # morir sigue siendo muy malo
+        elif dist <= 2:
+            score -= 80
+        elif dist <= 3:
+            score -= 20
+        else:
+            score += dist * 0.1
+
+
+    # ---- NUMBER OF DELIVERIES (penalización fuerte) ----
+    score -= 50 * len(deliveries)
+
+    return score
