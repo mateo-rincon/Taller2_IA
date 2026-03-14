@@ -24,7 +24,50 @@ def backtracking_search(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     You can find inspiration in the textbook's pseudocode:
     Artificial Intelligence: A Modern Approach (4th Edition) by Russell and Norvig, Chapter 5: Constraint Satisfaction Problems
     """
-    # TODO: Implement your code here
+    #PROMPT: considerando el taller que te subi anteriormente, cree el siguiente codigo de backtracking_search. Ayudame a modificarlo para cumplir con el enunciado.
+    """def backtracking_search(csp: DroneAssignmentCSP) -> dict[str, str] | None:
+    assignment = {}
+    result = backtracking(csp, assignment)
+    return result
+
+    def backtracking(csp: DroneAssignmentCSP, assignment:dict[str, str])-> dict [str, str] | None:
+        if csp.is_complete(assignment):
+            return assignment
+        var = csp.get_unassigned_variables(assignment)
+        for element in var:
+            for value in csp.domains[element]:
+                if csp.is_consistent(element, value, assignment):
+                    csp.assign(element, value, assignment)
+                    result = backtracking(csp, assignment)
+                    if result is not None:
+                        return result
+                    csp.unassign(element, assignment)
+        return None
+    """
+    assignment = {}
+    return backtracking(csp, assignment)
+
+def backtracking(csp: DroneAssignmentCSP, assignment: dict[str, str]) -> dict[str, str] | None:
+    # Caso base: asignación completa
+    if csp.is_complete(assignment):
+        return assignment.copy()
+
+    # Elegir UNA sola variable no asignada (sin heurísticas)
+    unassigned_vars = csp.get_unassigned_variables(assignment)
+    var = unassigned_vars[0]
+
+    # Probar cada valor del dominio de esa variable
+    for value in csp.domains[var]:
+        if csp.is_consistent(var, value, assignment):
+            csp.assign(var, value, assignment)
+
+            result = backtracking(csp, assignment)
+            if result is not None:
+                return result
+
+            csp.unassign(var, assignment)
+
+    # Si ningún valor funcionó, hubo backtrack
     return None
 
 
@@ -40,9 +83,31 @@ def backtracking_fc(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     - Use csp.is_consistent(neighbor, val, assignment) to check if a value is still consistent.
     - Forward checking reduces the search space by detecting failures earlier than basic backtracking.
     """
-    # TODO: Implement your code here
-    return None
+    #PROMPT: considerando el taller que te subi anteriormente, cree el siguiente codigo de backtracking_fc. Ayudame a modificarlo para cumplir con el enunciado.
+    """
+    def backtracking_fc(csp: DroneAssignmentCSP) -> dict[str, str] | None:
+        assignment = {}
+        result = backtrackingFC(csp, assignment)
+        return result
 
+    def backtrackingFC(csp: DroneAssignmentCSP, assignment:dict[str, str])-> dict [str, str] | None:
+            if csp.is_complete(assignment):
+                return assignment
+            var = csp.get_unassigned_variables(assignment)
+            for element in var:
+                for value in csp.domains[element]:
+                    if csp.is_consistent(element, value, assignment):
+                        csp.assign(element, value, assignment)
+                        vecinos = csp.get_neighbors(element)
+                        for vecino in csp.domains[vecinos]:
+                            if not csp.is_consistent(vecino, value, assignment):
+                                csp.domains[vecino].remove(value)
+                        result = backtracking(csp, assignment)
+                        if result is not None:
+                            return result
+                        csp.unassign(element, assignment)
+            return None
+    """
 
 def backtracking_ac3(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     """
@@ -60,8 +125,95 @@ def backtracking_ac3(csp: DroneAssignmentCSP) -> dict[str, str] | None:
       - an ac3 function that manages the queue of arcs to check and calls revise.
       - a backtrack function that integrates AC-3 into the search process.
     """
-    # TODO: Implement your code here
-    return None
+    #PROMPT: considerando el taller que te subi anteriormente, cree el siguiente codigo de backtracking_ac3. Ayudame a modificarlo para cumplir con el enunciado.
+    """assignment = {}
+    domains = csp.domains.copy()
+
+    queue = []
+    for xi in csp.domains:
+        for xj in csp.get_neighbors(xi):
+            queue.append((xi, xj))
+
+    if not ac3(csp, domains, queue):
+        return None
+
+    return backtrack_ac3(csp, assignment, domains)
+
+def values_compatible(csp: DroneAssignmentCSP, xi, x, xj, y) -> bool:
+    temp_assignment = {xi: x, xj: y}
+    return (
+        csp.is_consistent(xi, x, temp_assignment)
+        and csp.is_consistent(xj, y, temp_assignment)
+    )
+
+
+def revise(csp: DroneAssignmentCSP, xi, xj, domains) -> bool:
+    revised = False
+    values_to_remove = []
+
+    for x in domains[xi]:
+        supported = False
+        for y in domains[xj]:
+            if values_compatible(csp, xi, x, xj, y):
+                supported = True
+                break
+
+        if not supported:
+            values_to_remove.append(x)
+
+    for x in values_to_remove:
+        domains[xi].remove(x)
+        revised = True
+
+    return revised
+
+
+def ac3(csp: DroneAssignmentCSP, domains, queue) -> bool:
+    while queue:
+        xi, xj = queue.pop(0)
+
+        if revise(csp, xi, xj, domains):
+            if len(domains[xi]) == 0:
+                return False
+
+            for xk in csp.get_neighbors(xi):
+                if xk != xj:
+                    queue.append((xk, xi))
+
+    return True
+
+
+def backtrack_ac3(csp: DroneAssignmentCSP, assignment, domains) -> dict[str, str] | None:
+    if csp.is_complete(assignment):
+        return assignment
+
+    unassigned = csp.get_unassigned_variables(assignment)
+    var = unassigned[0]
+
+    for value in list(domains[var]):
+        if csp.is_consistent(var, value, assignment):
+            csp.assign(var, value, assignment)
+
+            saved_domains = domains.copy()
+            domains[var] = [value]
+
+            queue = []
+            for neighbor in csp.get_neighbors(var):
+                if neighbor not in assignment:
+                    queue.append((neighbor, var))
+
+            if ac3(csp, domains, queue):
+                result = backtrack_ac3(csp, assignment, domains)
+                if result is not None:
+                    return result
+
+            domains.clear()
+            domains.update(csp.saved_domains.copy())
+            csp.unassign(var, assignment)
+
+    return None"""
+
+
 
 
 def backtracking_mrv_lcv(csp: DroneAssignmentCSP) -> dict[str, str] | None:
@@ -76,5 +228,93 @@ def backtracking_mrv_lcv(csp: DroneAssignmentCSP) -> dict[str, str] | None:
       values that rule out the fewest choices for neighboring variables.
     - Use csp.get_num_conflicts(var, value, assignment) to count how many values would be ruled out for neighbors if var=value is assigned.
     """
-    # TODO: Implement your code here (BONUS)
-    return None
+        #PROMPT: considerando el taller que te subi anteriormente, cree el siguiente codigo de backtracking_mrv_lcv. Ayudame a modificarlo para cumplir con el enunciado.
+    """assignment = {}
+    domains = csp.domains.copy()
+    return backtrack_mrv_lcv(csp, assignment, domains)
+
+
+def forward_check(
+    csp: DroneAssignmentCSP,
+    var: str,
+    assignment: dict[str, str],
+    domains: dict[str, list[str]],
+) -> bool:
+    for neighbor in csp.get_neighbors(var):
+        if neighbor in assignment:
+            continue
+
+        valid_values = []
+        for value in domains[neighbor]:
+            if csp.is_consistent(neighbor, value, assignment):
+                valid_values.append(value)
+
+        domains[neighbor] = valid_values
+
+        if len(domains[neighbor]) == 0:
+            return False
+
+    return True
+
+
+def select_unassigned_variable_mrv(
+    csp: DroneAssignmentCSP,
+    assignment: dict[str, str],
+    domains: dict[str, list[str]],
+) -> str:
+    unassigned = csp.get_unassigned_variables(assignment)
+
+    return min(
+        unassigned,
+        key=lambda var: (
+            len(domains[var]),
+            -sum(1 for neighbor in csp.get_neighbors(var) if neighbor not in assignment),
+        ),
+    )
+
+
+def order_domain_values_lcv(
+    csp: DroneAssignmentCSP,
+    var: str,
+    assignment: dict[str, str],
+    domains: dict[str, list[str]],
+) -> list[str]:
+    valid_values = [
+        value for value in domains[var]
+        if csp.is_consistent(var, value, assignment)
+    ]
+
+    return sorted(
+        valid_values,
+        key=lambda value: csp.get_num_conflicts(var, value, assignment)
+    )
+
+
+def backtrack_mrv_lcv(
+    csp: DroneAssignmentCSP,
+    assignment: dict[str, str],
+    domains: dict[str, list[str]],
+) -> dict[str, str] | None:
+    if csp.is_complete(assignment):
+        return assignment
+
+    var = select_unassigned_variable_mrv(csp, assignment, domains)
+
+    for value in order_domain_values_lcv(csp, var, assignment, domains):
+        if csp.is_consistent(var, value, assignment):
+            csp.assign(var, value, assignment)
+
+            saved_domains = domains.copy()
+            domains[var] = [value]
+
+            if forward_check(csp, var, assignment, domains):
+                result = backtrack_mrv_lcv(csp, assignment, domains)
+                if result is not None:
+                    return result
+
+            domains.clear()
+            domains.update(saved_domains.copy())
+            csp.unassign(var, assignment)
+
+    return None"""
+
